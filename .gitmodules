@@ -1,0 +1,6 @@
+[submodule "vendor/meshtastic-firmware"]
+	path = vendor/meshtastic-firmware
+	url = https://github.com/meshtastic/firmware.git
+[submodule "vendor/meshtastic-android"]
+	path = vendor/meshtastic-android
+	url = https://github.com/meshtastic/Meshtastic-Android.git

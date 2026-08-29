@@ -32,9 +32,10 @@ transport hops). It is not a separate/competing identity or signing scheme.
    canonicalized into `omokoda::Envelope` (`include/packet/envelope.h`)
    before routing, signing, or hop-chain logic touches it. Bridges convert
    in/out of this shape; nothing else needs to know the origin network.
-3. **No parallel identity system.** Node signing keys reuse the same
-   secp256k1/Ed25519 + BIPON39/NIP-06 derivation already used elsewhere in
-   the ecosystem — see `docs/EVENT_KINDS.md`.
+3. **Nostr is core identity; Reticulum is an optional bridge; Meshtastic is
+   wrapped, not forked.** See `docs/ARCHITECTURE.md` for the full layering
+   decision, including the OSOVM (Julia sim validation + Gaussian
+   splatting) tie-in for spatial telemetry.
 
 ## Layout
 
@@ -53,6 +54,12 @@ transport hops). It is not a separate/competing identity or signing scheme.
   implemented.
 - `docs/EVENT_KINDS.md` — Nostr event kind allocation (20000-20005) and tag
   schema for cross-network packets.
+- `docs/ARCHITECTURE.md` — core-vs-optional layering: Nostr identity,
+  Reticulum bridge, Meshtastic wrapping, Arch OS, OSOVM tie-in.
+- `vendor/meshtastic-firmware`, `vendor/meshtastic-android` — git
+  submodules, upstream Meshtastic repos kept for protocol reference and
+  promiscuous-sniffing compatibility. Not forked, not modified. Clone with
+  `git submodule update --init --recursive`.
 
 ## Build
 
