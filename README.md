@@ -12,7 +12,16 @@ transport hops). It is not a separate/competing identity or signing scheme.
 
 ## Status
 
-Doc + scaffold stage. Nothing here talks to real radio hardware yet.
+- SX1262 radio HAL: **implemented** (`lib/hal_lora_sx1262`, via RadioLib).
+- `Envelope` binary wire format: **implemented** (`lib/packet_wrapper`).
+- Nostr bridge (`Envelope` <-> signed kind-2000x event, NIP-01 id/canonical
+  JSON): **implemented** (`lib/nostr_bridge`), except actual schnorr
+  signing — `NostrSigner` is an interface only; the concrete implementation
+  should wrap whatever BIPON39/NIP-06-derived key material the node already
+  holds rather than mint a new keystore (see `docs/EVENT_KINDS.md`).
+- SX1276, CC1101, BLE, WiFi HALs and the Reticulum/Meshtastic bridges:
+  **stubs, not yet implemented**.
+- Untested on real hardware — no board has been flashed yet.
 
 ## Design principles
 
@@ -34,11 +43,14 @@ Doc + scaffold stage. Nothing here talks to real radio hardware yet.
   env, not by forking source.
 - `include/hal/` — radio abstraction interface.
 - `include/packet/` — cross-protocol envelope.
-- `lib/hal_lora_*`, `lib/hal_ble`, `lib/hal_wifi` — per-radio HAL drivers
-  (stubs, not yet implemented).
-- `lib/*_bridge` — per-network bridge modules (Nostr, Reticulum,
-  Meshtastic) that translate to/from `Envelope` (stubs, not yet
-  implemented).
+- `lib/hal_lora_sx1262` — real SX1262 driver (RadioLib-backed).
+- `lib/hal_lora_sx1276`, `lib/hal_lora_cc1101`, `lib/hal_ble`, `lib/hal_wifi`
+  — stub HAL drivers, not yet implemented.
+- `lib/packet_wrapper` — `Envelope` binary (de)serialization, implemented.
+- `lib/nostr_bridge` — `Envelope` <-> Nostr event conversion + NIP-01
+  id/canonical serialization, implemented (signing interface only).
+- `lib/reticulum_bridge`, `lib/meshtastic_bridge` — stubs, not yet
+  implemented.
 - `docs/EVENT_KINDS.md` — Nostr event kind allocation (20000-20005) and tag
   schema for cross-network packets.
 
