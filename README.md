@@ -32,10 +32,11 @@ transport hops). It is not a separate/competing identity or signing scheme.
    canonicalized into `omokoda::Envelope` (`include/packet/envelope.h`)
    before routing, signing, or hop-chain logic touches it. Bridges convert
    in/out of this shape; nothing else needs to know the origin network.
-3. **Nostr is core identity; Reticulum is an optional bridge; Meshtastic is
-   wrapped, not forked.** See `docs/ARCHITECTURE.md` for the full layering
-   decision, including the OSOVM (Julia sim validation + Gaussian
-   splatting) tie-in for spatial telemetry.
+3. **Nostr is core identity; Reticulum is an optional bridge; Meshtastic
+   interop is a real fork (`omokoda-mesh-firmware`), not a wrap.** See
+   `docs/ARCHITECTURE.md` for the full layering decision, including the
+   OSOVM (Julia sim validation + Gaussian splatting) tie-in for spatial
+   telemetry.
 
 ## Layout
 
@@ -56,10 +57,10 @@ transport hops). It is not a separate/competing identity or signing scheme.
   schema for cross-network packets.
 - `docs/ARCHITECTURE.md` — core-vs-optional layering: Nostr identity,
   Reticulum bridge, Meshtastic wrapping, Arch OS, OSOVM tie-in.
-- `vendor/meshtastic-firmware`, `vendor/meshtastic-android` — git
-  submodules, upstream Meshtastic repos kept for protocol reference and
-  promiscuous-sniffing compatibility. Not forked, not modified. Clone with
-  `git submodule update --init --recursive`.
+- `vendor/meshtastic-android` — git submodule, upstream reference only
+  (not forked). The firmware side is now a real fork instead of a
+  submodule — see `cryptonomicsed-byte/omokoda-mesh-firmware` and
+  `docs/ARCHITECTURE.md` §3.
 
 ## Build
 

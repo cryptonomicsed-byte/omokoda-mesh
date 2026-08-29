@@ -20,21 +20,33 @@ destination hash is metadata on an envelope (`reticulum_dest` tag), not an
 alternate identity. If Reticulum is unavailable or unwanted on a given
 deployment, the node loses nothing identity-wise — Nostr already covers it.
 
-## 3. Meshtastic core is wrapped, not reimplemented
+## 3. Meshtastic core is forked, not wrapped (revised 2026-08-29)
 
-`meshtastic/firmware` and `meshtastic/Meshtastic-Android` are vendored as
-git submodules under `vendor/` for protocol reference and passive-sniffing
-compatibility — **not forked, not modified, not the basis for our own
-firmware.** Our firmware wraps/observes Meshtastic traffic (promiscuous
-frame ingestion, see `RadioHAL::supportsPromiscuous()`) and translates it
-through `lib/meshtastic_bridge` (still a stub) into an `Envelope`, the same
-way Reticulum and LoRaWAN frames get translated. Meshtastic nodes on the
-existing public mesh are never required to run our firmware or know we
-exist — we're compatible with them, we don't require them to change.
+Wrapping (passive sniffing of an unmodified upstream binary/firmware) was
+tried first and rejected: it's one-way — it can never let an omokoda node
+**originate** a packet real Meshtastic nodes will route, only observe their
+traffic. We now maintain a real fork:
+**`cryptonomicsed-byte/omokoda-mesh-firmware`** (forked from
+`meshtastic/firmware`). See that repo's `docs/OMOKODA_FORK_PLAN.md` for the
+exact scope: only `src/mesh/CryptoEngine` is replaced (Nostr/NIP-06-rooted
+keys instead of Meshtastic's own Curve25519 keypair generation); mesh
+routing/flooding and radio HAL/board support stay upstream, unmodified, so
+the fork remains a first-class participant on existing public Meshtastic
+meshes.
 
-Update submodules deliberately, not automatically:
+`Meshtastic-Android` remains a vendored **reference submodule** (not
+forked) under `vendor/meshtastic-android` — the identity swap is a
+firmware/protocol-level change; the companion app doesn't need its own
+fork unless/until the protobuf extension requires app-side awareness.
+
+`omokoda-mesh` (this repo, the from-scratch universal firmware) and
+`omokoda-mesh-firmware` (the Meshtastic fork) are siblings, not
+competitors — use this repo for nodes needing no Meshtastic-mesh interop,
+use the fork for nodes that must be native Meshtastic-mesh participants.
+Both root identity in Nostr.
+
+Update the reference submodule deliberately, not automatically:
 ```
-git submodule update --remote vendor/meshtastic-firmware
 git submodule update --remote vendor/meshtastic-android
 ```
 
