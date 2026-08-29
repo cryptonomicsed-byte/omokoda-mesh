@@ -9,12 +9,17 @@
 #include <Arduino.h>
 #include "hal/radio_hal.h"
 #include "packet/envelope.h"
+#include "nostr_event.h"
+#include "nostr/secp256k1_signer.h"
 
 // Selected by the linker based on the active PlatformIO environment's
 // lib_deps / build_flags — see lib/hal_lora_*/ for implementations.
 extern omokoda::RadioHAL& getActiveRadioHAL();
 
 static omokoda::RadioHAL* radio = nullptr;
+static omokoda::NvsSecp256k1KeySource keySource;
+static omokoda::Secp256k1NostrSigner signer(keySource);
+static bool signerReady = false;
 
 void setup() {
     Serial.begin(115200);
@@ -33,6 +38,19 @@ void setup() {
     if (!radio->begin(cfg)) {
         Serial.println("radio init failed");
     }
+
+    // Dev/standalone fallback key provisioning. A node wired to real
+    // ecosystem-derived key material (BIPON39/NIP-06) should supply its
+    // own Secp256k1KeySource instead of NvsSecp256k1KeySource and skip
+    // this call entirely.
+    keySource.provisionIfAbsent();
+
+    signerReady = signer.begin();
+    if (signerReady) {
+        Serial.printf("node npub (hex): %s\n", signer.pubkeyHex().c_str());
+    } else {
+        Serial.println("signer init failed — no key material or secp256k1 init error");
+    }
 }
 
 void loop() {
@@ -40,7 +58,14 @@ void loop() {
     size_t n = radio->receive(buf, sizeof(buf));
     if (n > 0) {
         omokoda::Envelope env;
-        if (omokoda::Envelope::deserialize(buf, n, env)) {
+        if (omokoda::Envelope::deserialize(buf, n, env) && signerReady) {
+            omokoda::NostrEvent ev = omokoda::envelopeToNostrEvent(env, signer.pubkeyHex());
+            if (omokoda::nostrFinalizeEvent(ev, signer)) {
+                // TODO: hand off to a gateway/relay transport instead of
+                // just logging — this proves the sign path works
+                // end-to-end but doesn't publish anywhere yet.
+                Serial.println(omokoda::nostrEventToJson(ev).c_str());
+            }
             // TODO: append hop signature, route to bridge(s), forward.
         }
     }

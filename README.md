@@ -15,10 +15,18 @@ transport hops). It is not a separate/competing identity or signing scheme.
 - SX1262 radio HAL: **implemented** (`lib/hal_lora_sx1262`, via RadioLib).
 - `Envelope` binary wire format: **implemented** (`lib/packet_wrapper`).
 - Nostr bridge (`Envelope` <-> signed kind-2000x event, NIP-01 id/canonical
-  JSON): **implemented** (`lib/nostr_bridge`), except actual schnorr
-  signing — `NostrSigner` is an interface only; the concrete implementation
-  should wrap whatever BIPON39/NIP-06-derived key material the node already
-  holds rather than mint a new keystore (see `docs/EVENT_KINDS.md`).
+  JSON): **implemented** (`lib/nostr_bridge`).
+- `NostrSigner`: **implemented for real** —
+  `Secp256k1NostrSigner` (`lib/crypto_secp256k1`) does actual BIP-340
+  Schnorr signing via a vendored libsecp256k1 build (`vendor/secp256k1-embedded`,
+  EXTRAKEYS+SCHNORRSIG modules enabled). Key material comes from a
+  pluggable `Secp256k1KeySource`; the default `NvsSecp256k1KeySource` is a
+  dev/standalone fallback (raw key in ESP32 NVS, no secure element) — a
+  node wired to real ecosystem BIPON39/NIP-06-derived keys should supply
+  its own `Secp256k1KeySource` instead. See
+  `include/nostr/secp256k1_signer.h`. `src/main.cpp` now signs and logs a
+  full Nostr event end-to-end (not yet published anywhere — no relay
+  transport wired in).
 - Reticulum bridge (`Envelope` <-> RNS packet shape): **implemented**
   (`lib/reticulum_bridge`), packet-shape only — no RNS Identity
   encryption/signing, no transport routing. See
@@ -56,7 +64,13 @@ transport hops). It is not a separate/competing identity or signing scheme.
   — stub HAL drivers, not yet implemented.
 - `lib/packet_wrapper` — `Envelope` binary (de)serialization, implemented.
 - `lib/nostr_bridge` — `Envelope` <-> Nostr event conversion + NIP-01
-  id/canonical serialization, implemented (signing interface only).
+  id/canonical serialization, implemented.
+- `lib/crypto_secp256k1` — real `NostrSigner` implementation
+  (BIP-340 Schnorr via vendored libsecp256k1) + NVS dev keystore.
+- `vendor/secp256k1-embedded` — git submodule, upstream libsecp256k1
+  adapted for embedded targets; our own config header
+  (`lib/crypto_secp256k1/libsecp256k1-config.h`) enables the
+  EXTRAKEYS+SCHNORRSIG modules the wrapper doesn't turn on by default.
 - `lib/reticulum_bridge` — `Envelope` <-> RNS packet-shape conversion,
   implemented (no RNS Identity crypto yet — see `docs/RETICULUM_BRIDGE.md`).
 - `lib/meshtastic_bridge` — stub; superseded by the
