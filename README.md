@@ -19,8 +19,14 @@ transport hops). It is not a separate/competing identity or signing scheme.
   signing — `NostrSigner` is an interface only; the concrete implementation
   should wrap whatever BIPON39/NIP-06-derived key material the node already
   holds rather than mint a new keystore (see `docs/EVENT_KINDS.md`).
-- SX1276, CC1101, BLE, WiFi HALs and the Reticulum/Meshtastic bridges:
-  **stubs, not yet implemented**.
+- Reticulum bridge (`Envelope` <-> RNS packet shape): **implemented**
+  (`lib/reticulum_bridge`), packet-shape only — no RNS Identity
+  encryption/signing, no transport routing. See
+  `docs/RETICULUM_BRIDGE.md` for exact gaps before treating it as
+  interop-tested against real Reticulum nodes.
+- SX1276, CC1101, BLE, WiFi HALs and the Meshtastic bridge (superseded by
+  the `omokoda-mesh-firmware` fork instead): **stubs, not yet
+  implemented**.
 - Untested on real hardware — no board has been flashed yet.
 
 ## Design principles
@@ -51,8 +57,10 @@ transport hops). It is not a separate/competing identity or signing scheme.
 - `lib/packet_wrapper` — `Envelope` binary (de)serialization, implemented.
 - `lib/nostr_bridge` — `Envelope` <-> Nostr event conversion + NIP-01
   id/canonical serialization, implemented (signing interface only).
-- `lib/reticulum_bridge`, `lib/meshtastic_bridge` — stubs, not yet
-  implemented.
+- `lib/reticulum_bridge` — `Envelope` <-> RNS packet-shape conversion,
+  implemented (no RNS Identity crypto yet — see `docs/RETICULUM_BRIDGE.md`).
+- `lib/meshtastic_bridge` — stub; superseded by the
+  `omokoda-mesh-firmware` fork for real Meshtastic-mesh interop.
 - `docs/EVENT_KINDS.md` — Nostr event kind allocation (20000-20005) and tag
   schema for cross-network packets.
 - `docs/ARCHITECTURE.md` — core-vs-optional layering: Nostr identity,
