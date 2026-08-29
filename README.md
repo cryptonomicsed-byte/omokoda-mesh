@@ -4,18 +4,25 @@ Universal, hardware-agnostic ESP32 LoRa mesh node firmware. Nostr-native
 packet format, cross-network relay (Nostr / Reticulum / Meshtastic /
 LoRaWAN / DePIN), proof-of-relay hop signatures.
 
-Part of the Ọmọ Kọ́dà / OSOVM / Vantage ecosystem — this is a concrete
-implementation of the still-unbuilt first step in the locked
-`osovm-witness-attestation-architecture` design (Reticulum mesh for
-identity/signing + Nostr/Bondhive pattern for economics/reputation + DePIN
-transport hops). It is not a separate/competing identity or signing scheme.
+Part of the Ọmọ Kọ́dà / OSOVM / Vantage ecosystem — a genuine limb of that
+ecosystem, not a generic mesh protocol that shares its names. Built to
+reuse the ecosystem's real, locked schemas wherever one exists (checked
+directly against `Witness-firmware`/`ip-layer`/`minipae`/`BIPON39`, see
+`docs/ARCHITECTURE.md` §6 "Custom-fit audit"), and to stay genuinely
+custom only where no ecosystem schema exists yet (mesh routing/telemetry).
+This supersedes the earlier framing that positioned Reticulum as a peer
+identity layer — see `docs/ARCHITECTURE.md` §1-2 for the current, locked
+layering.
 
 ## Status
 
 - SX1262 radio HAL: **implemented** (`lib/hal_lora_sx1262`, via RadioLib).
 - `Envelope` binary wire format: **implemented** (`lib/packet_wrapper`).
-- Nostr bridge (`Envelope` <-> signed kind-2000x event, NIP-01 id/canonical
-  JSON): **implemented** (`lib/nostr_bridge`).
+- Nostr bridge (`Envelope` <-> signed event, NIP-01 id/canonical JSON):
+  **implemented** (`lib/nostr_bridge`). Proof-of-relay reuses the
+  ecosystem's real `ip-layer` Attestation schema (kind 1902,
+  `nostrBuildRelayAttestation()`) instead of a custom kind — see
+  `docs/EVENT_KINDS.md`.
 - `NostrSigner`: **implemented for real** —
   `Secp256k1NostrSigner` (`lib/crypto_secp256k1`) does actual BIP-340
   Schnorr signing via a vendored libsecp256k1 build (`vendor/secp256k1-embedded`,
@@ -75,8 +82,9 @@ transport hops). It is not a separate/competing identity or signing scheme.
   implemented (no RNS Identity crypto yet — see `docs/RETICULUM_BRIDGE.md`).
 - `lib/meshtastic_bridge` — stub; superseded by the
   `omokoda-mesh-firmware` fork for real Meshtastic-mesh interop.
-- `docs/EVENT_KINDS.md` — Nostr event kind allocation (20000-20005) and tag
-  schema for cross-network packets.
+- `docs/EVENT_KINDS.md` — Nostr event kind allocation (custom: 20000/20001/
+  20003; reused: `ip-layer` Attestation kind 1902 for proof-of-relay) and
+  tag schema for cross-network packets.
 - `docs/ARCHITECTURE.md` — core-vs-optional layering: Nostr identity,
   Reticulum bridge, Meshtastic wrapping, Arch OS, OSOVM tie-in.
 - `docs/MESHTASTIC_ANDROID_PATTERNS.md` — patterns extracted from

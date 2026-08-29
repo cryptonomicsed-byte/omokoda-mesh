@@ -54,11 +54,11 @@ Both root identity in Nostr.
 
 Unchanged from `omokoda-mesh-os` — gateways boot Arch (archiso-based), not
 a Meshtastic-vendor OS or a general Linux distro. This is where the
-Meshtastic protobuf decoding, Reticulum bridge, and Nostr relay-forwarding
-actually run as services, using the vendored Meshtastic protobuf
-definitions from `vendor/meshtastic-firmware/protobufs/` as the wire
-schema for that one bridge module — nothing else in the OS depends on
-Meshtastic code.
+Reticulum bridge and Nostr relay-forwarding actually run as services. The
+Meshtastic side runs as `omokoda-mesh-firmware` (the fork, §3) on the
+actual ESP32 radio hardware, not as an OS-level service — the gateway OS
+talks to that hardware over serial/BLE, it doesn't decode Meshtastic
+protobufs itself.
 
 ## 5. OSOVM tie-in: Julia sim validation + Gaussian splatting
 
@@ -79,12 +79,55 @@ event to a gateway; OSOVM picks it up from there. No new pipeline needed
 here, just make sure the event schema is something OSOVM's existing
 ingestion can consume without translation.
 
+## 6. Custom-fit audit (2026-08-29): built for this ecosystem, not generic
+
+Explicit owner directive: this firmware must be a genuine limb of
+Omo-Koda2/OSOVM/Vantage, using their real, already-locked schemas — not a
+generic mesh protocol that happens to share names with the ecosystem.
+Verified directly against `Witness-firmware`, `ip-layer`, `minipae`,
+`BIPON39` (cloned and read, not recalled from memory) on 2026-08-29.
+Findings and what changed as a result — see `docs/EVENT_KINDS.md` for full
+detail:
+
+- **Proof-of-relay was reinvented, now fixed**: dropped the custom kind
+  20002 "Bandwidth/Proof-of-Relay" in favor of `ip-layer`'s real,
+  attestor-agnostic Attestation schema (kind `1902`, `stance: confirm`).
+  See `lib/nostr_bridge`'s `nostrBuildRelayAttestation()`.
+- **Vestigial custom kind removed**: kind 20004 "Cross-Network Bridge Tag"
+  was never actually emitted by the code — origin-network metadata was
+  already just tags on the other kinds. Dropped rather than kept as dead
+  weight.
+- **Key derivation still generic, needs fixing**: `minipae` locks a real
+  ecosystem convention — hardened BIP-32 from the shared master BIP39
+  seed, `m/44'/<kind-number>'/<agent_index>'/<owner_index>'`. Our
+  `NvsSecp256k1KeySource` currently generates a random key instead of
+  deriving one this way. `BIPON39` has the correct NIP-06 math but is a
+  std-only Rust crate with no FFI/`no_std` target, so it can't be linked
+  directly — the derivation needs reimplementing in C++ against our
+  already-vendored secp256k1. Not yet done.
+- **Reticulum bridge missing a real layer**: `Witness-firmware`'s
+  `witness_rns_identity.py` uses the actual `RNS` library and establishes
+  a two-layer signature model (content-level Schnorr + transport-level
+  RNS Identity/Ed25519) that our `reticulum_bridge` doesn't yet have — see
+  `docs/RETICULUM_BRIDGE.md` gap #2. It also names **microReticulum** as
+  the real embedded/C target, worth evaluating against our hand-rolled
+  `RnsPacket` before extending it further.
+- **What was already right**: the Schnorr/NIP-01-shaped node identity
+  approach (`Secp256k1NostrSigner`) is confirmed correct — it's the exact
+  same primitive `Witness-firmware`'s `WitnessIdentity` uses independently
+  for the same purpose. Genuinely mesh-specific kinds (20000 route, 20001
+  telemetry, 20003 presence) have no ecosystem analog to reuse, so staying
+  custom there is correct, not a shortcut — but still provisional pending
+  a formal kind-number reservation (no ecosystem-wide registry exists to
+  check against yet).
+
 ## Summary table
 
 | Layer | Role | Status |
 |---|---|---|
 | Nostr | Core identity, root of trust | Core |
-| Reticulum | Optional offline/mesh transport | Optional bridge (stub) |
-| Meshtastic | Wrapped for compatibility, vendored reference only | Wrapped, not core (stub bridge) |
+| Reticulum | Optional offline/mesh transport | Optional bridge (packet-shape real, missing RNS Identity layer — see §6) |
+| Meshtastic | Real Meshtastic-mesh interop | Forked (`omokoda-mesh-firmware`), not wrapped — see §3 |
 | Arch Linux | Foundation OS for gateways | Core (`omokoda-mesh-os`) |
 | OSOVM (Julia sim + Gaussian splatting) | Downstream consumer of kind-20001 telemetry | External, out of scope here |
+| ip-layer Attestation (kind 1902) | Proof-of-relay | Reused directly, not reinvented — see §6 |

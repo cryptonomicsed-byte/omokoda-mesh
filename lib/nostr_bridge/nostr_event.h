@@ -4,9 +4,15 @@
 #include "packet/envelope.h"
 
 // Converts between omokoda::Envelope and a signed Nostr event (NIP-01),
-// using the kind 20000-20005 scheme + tags documented in
-// docs/EVENT_KINDS.md. This is the only place Envelope <-> Nostr JSON
-// conversion happens; radio/HAL code never sees Nostr JSON.
+// using the kind scheme + tags documented in docs/EVENT_KINDS.md. This is
+// the only place Envelope <-> Nostr JSON conversion happens; radio/HAL
+// code never sees Nostr JSON.
+//
+// Custom-fit rule: kinds 20000/20001/20003 are genuinely ours (no existing
+// ecosystem schema covers mesh routing/telemetry/presence). Proof-of-relay
+// is NOT a custom kind — it reuses the real ip-layer Attestation schema
+// (kind 1902), see nostrBuildRelayAttestation() below and
+// docs/EVENT_KINDS.md "Why 20002 was dropped".
 
 namespace omokoda {
 
@@ -54,5 +60,17 @@ bool nostrEventToEnvelope(const NostrEvent& ev, Envelope& out);
 
 // Full JSON serialization of a finalized event, ready to publish to a relay.
 std::string nostrEventToJson(const NostrEvent& ev);
+
+// Builds an unsigned kind-1902 Attestation event (ip-layer canonical
+// schema, see docs/EVENT_KINDS.md), stance "confirm", proof-of-relay for
+// a routed packet. `routedEventId` is the kind-20000 Mesh Packet Route
+// event's id being confirmed; `routedEventPubkey` is that event's
+// pubkey (the "p" tag, per the ip-layer schema). Caller still must call
+// nostrFinalizeEvent() before publishing. This does NOT invent a new
+// mesh-specific kind — it is a direct instance of the ecosystem's
+// existing attestor-agnostic Attestation schema.
+NostrEvent nostrBuildRelayAttestation(const std::string& routedEventId,
+                                        const std::string& routedEventPubkey,
+                                        const std::string& attestorPubkeyHex);
 
 } // namespace omokoda

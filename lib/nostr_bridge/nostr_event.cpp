@@ -174,6 +174,27 @@ bool nostrEventToEnvelope(const NostrEvent& ev, Envelope& out) {
     return true;
 }
 
+NostrEvent nostrBuildRelayAttestation(const std::string& routedEventId,
+                                        const std::string& routedEventPubkey,
+                                        const std::string& attestorPubkeyHex) {
+    NostrEvent ev;
+    ev.pubkeyHex = attestorPubkeyHex;
+    ev.kind = 1902; // ip-layer canonical Attestation kind — see docs/EVENT_KINDS.md
+    ev.createdAt = 0; // caller (main loop) sets a real timestamp before finalizing
+
+    ev.tags.push_back({"e", {routedEventId}});
+    ev.tags.push_back({"p", {routedEventPubkey}});
+    ev.tags.push_back({"stance", {"confirm"}});
+    ev.tags.push_back({"L", {"attestation"}});
+    ev.tags.push_back({"l", {"confirm", "attestation"}});
+
+    ev.content = "{}"; // no extra notes by default; caller may overwrite
+                        // with physics-proof detail (rssi/chain_hash, see
+                        // Witness-firmware's PhysicsProof shape) if desired
+
+    return ev;
+}
+
 std::string nostrEventToJson(const NostrEvent& ev) {
     JsonDocument doc;
     doc["id"] = ev.id;
