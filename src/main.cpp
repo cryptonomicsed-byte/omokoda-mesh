@@ -1,0 +1,47 @@
+// omokoda-mesh core loop.
+//
+// This file must stay board-agnostic. Board/radio differences are
+// resolved entirely through the RadioHAL implementation selected at
+// build time (see platformio.ini envs) — never with #ifdef branches
+// in this file. If you find yourself wanting to branch here on
+// OMOKODA_BOARD, that logic belongs in the HAL instead.
+
+#include <Arduino.h>
+#include "hal/radio_hal.h"
+#include "packet/envelope.h"
+
+// Selected by the linker based on the active PlatformIO environment's
+// lib_deps / build_flags — see lib/hal_lora_*/ for implementations.
+extern omokoda::RadioHAL& getActiveRadioHAL();
+
+static omokoda::RadioHAL* radio = nullptr;
+
+void setup() {
+    Serial.begin(115200);
+    Serial.printf("omokoda-mesh %s booting on %s\n",
+                   OMOKODA_MESH_VERSION, OMOKODA_BOARD);
+
+    radio = &getActiveRadioHAL();
+
+    omokoda::RadioConfig cfg{};
+    cfg.frequencyHz = 915000000; // TODO: region config (868/915/etc)
+    cfg.spreadingFactor = 9;
+    cfg.bandwidthKhz = 125;
+    cfg.codingRate = 5;
+    cfg.txPowerDbm = 17;
+
+    if (!radio->begin(cfg)) {
+        Serial.println("radio init failed");
+    }
+}
+
+void loop() {
+    uint8_t buf[256];
+    size_t n = radio->receive(buf, sizeof(buf));
+    if (n > 0) {
+        omokoda::Envelope env;
+        if (omokoda::Envelope::deserialize(buf, n, env)) {
+            // TODO: append hop signature, route to bridge(s), forward.
+        }
+    }
+}
