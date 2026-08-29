@@ -87,6 +87,37 @@ telemetry (kind 20001) that OSOVM turns into a Creation Receipt (kind
 creation does — omokoda-mesh doesn't mint IP Roots or Creation Receipts
 itself, it only produces the raw kind-20001 telemetry OSOVM consumes.
 
+## Future work: real schemas already locked, not yet needed by this repo
+
+Per owner directive (2026-08-29): wire to what already exists, don't invent
+ahead of need. These are confirmed real and canonical — recorded here so
+whoever builds the corresponding feature doesn't reinvent it, but nothing
+below is implemented in this repo yet because the feature itself isn't
+built yet.
+
+- **Kind 1903 (Twin Binding)** — `ip-layer/schemas/twin_binding.md`
+  (parameterized-replaceable, like IP Root). This is the real event kind
+  for the embodiment/co-pilot pairing protocol (agent ↔ drone/robot/IoT
+  session negotiation) described in the portable sovereign agent device
+  spec. When that pairing protocol gets built on top of this mesh, it
+  emits kind 1903 events — **do not invent a parallel
+  embodiment-session/offer/accept/end schema.** Re-read
+  `twin_binding.md`'s exact field list before building it.
+- **NIP-44 v2** — minipae's real encryption standard (HKDF conversation
+  key, ChaCha20, HMAC-SHA256), already used for engram/agent-memory
+  payloads. Any future encrypted mesh payload (private embodiment
+  negotiation content, private engram sync over the mesh) should use real
+  NIP-44 v2, not a custom scheme — even though this repo's BIP-340 Schnorr
+  work is correct for signing, encryption is a different NIP and a
+  different implementation.
+- **Kind 30174 (NIP-AE / minipae)** — the real portable-memory wire format,
+  if firmware ever needs to read/write agent memory/engrams (birth
+  records, session logs) directly rather than just producing telemetry
+  for OSOVM to consume.
+- **NIP-42/NIP-65** — relay auth (kind 22242) and relay-list announcement,
+  if/when gateway nodes need to authenticate to or announce relays
+  themselves rather than just publishing.
+
 ## Open items
 
 - Kind 20000/20001/20003 numbers are still provisional — no formal
@@ -94,7 +125,9 @@ itself, it only produces the raw kind-20001 telemetry OSOVM consumes.
   Witness-firmware/ip-layer/minipae/BIPON39 maintain one, they just avoid
   collisions ad hoc). Confirm no collision before treating these as locked.
 - BIP-32 derivation (`m/44'/20000'/...`) is documented here but not
-  implemented — see `lib/crypto_secp256k1`.
-- `reticulum_bridge` still lacks the transport-level RNS Identity signature
-  layer that `Witness-firmware/witness_rns_identity.py` establishes as the
-  real ecosystem pattern.
+  implemented — see `lib/crypto_secp256k1`. This one is genuinely new
+  porting work (Rust BIPON39 math → C++), not something with an existing
+  NIP to reuse.
+- `reticulum_bridge` now bridges to real microReticulum (see
+  `docs/RETICULUM_BRIDGE.md`) but doesn't yet own a real `RNS::Identity` —
+  transport-level RNS signing/encryption isn't wired in yet.

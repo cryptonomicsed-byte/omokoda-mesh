@@ -5,55 +5,68 @@ Implements the "Reticulum is an optional bridge, not core" decision
 metadata, never an identity. Nostr remains the sole root of trust — see
 `docs/EVENT_KINDS.md`.
 
-## What's implemented
+## Real implementation, not hand-rolled (revised 2026-08-29)
 
-- `include/reticulum/rns_packet.h` + `lib/reticulum_bridge/rns_packet.cpp`
-  — `RnsPacket` struct modeling the RNS wire packet (header flags byte,
-  hop count, 16-byte destination hash, optional 16-byte transport id,
-  context byte, payload) with `serialize()`/`deserialize()`.
+An earlier version of this bridge modeled the RNS wire packet by hand
+(`RnsPacket` struct guessing at header bit-packing from the public spec
+description). That guess is gone. This now bridges to
+**[microReticulum](https://github.com/Reticulum-Community/microReticulum)**
+(`Reticulum-Community/microReticulum`, mirrored by Reticulum's own author
+as `markqvist/reticulum-cpp`) — a real, actively-maintained C++ port of the
+actual RNS stack, Apache-2.0, built for ESP32/MCU targets with working LoRa
+examples already in its own repo. Found by checking whether a real
+ecosystem-fit alternative existed before continuing to patch the
+hand-rolled version — it did.
+
+- `vendor/microReticulum` — pinned git submodule, kept as a readable
+  reference copy. The actual build pulls microReticulum via
+  `platformio.ini`'s `lib_deps` (a git URL, so PlatformIO resolves its
+  declared nested dependencies — ArduinoJson, MsgPack, the `attermann/Crypto`
+  fork — automatically). The submodule is not what compiles; `lib_deps` is.
 - `include/reticulum/reticulum_bridge.h` +
-  `lib/reticulum_bridge/reticulum_bridge.cpp` — `rnsPacketToEnvelope()` /
-  `envelopeToRnsPacket()` conversion functions, following the same shape as
-  the Nostr bridge (`lib/nostr_bridge`).
-- `rnsNameHash()` — truncated-SHA256 destination hash for named
-  destinations (`app_name.aspect1.aspect2` → 16-byte hash), used when
-  bridging a non-Reticulum envelope onto a Reticulum interface.
+  `lib/reticulum_bridge/reticulum_bridge.cpp` — thin conversion functions
+  between `omokoda::Envelope` and microReticulum's real `RNS::Packet`/
+  `RNS::Destination`/`RNS::Bytes` types. No custom packet-shape code
+  remains in this repo — RNS wire-format correctness is now microReticulum's
+  responsibility, not ours.
 
-## Known gaps — read before treating this as interop-ready
+## What this fixes from the old hand-rolled version
 
-This was built from the public RNS packet spec description, not validated
-against a real `rnsd` or RNode session yet. Specifically:
+1. **Header bit-packing** — no longer our concern; microReticulum's
+   `Packet`/`Type::Packet` implement the real format.
+2. **Two-layer signature model** — `Witness-firmware`'s
+   `witness_rns_identity.py` established that real RNS uses a
+   transport-level `Identity` (Ed25519/X25519) separate from any
+   content-level signature. microReticulum's `RNS::Identity` class *is*
+   that real layer — this bridge doesn't need to reimplement it.
+3. **Destination hashing** — `RNS::Destination::name_hash()` (real
+   implementation) replaces the hand-rolled truncated-SHA256 helper.
 
-1. **Header byte 0 bit packing is simplified.** Real RNS packs IFAC flag,
-   header type, a context flag, propagation type, destination type, and
-   packet type into one byte with specific bit positions. This
-   implementation only models the fields the bridge actually branches on
-   (IFAC, header type, destination type) and folds packet-type
-   disambiguation into the context byte instead of the header byte. If
-   real RNS nodes reject or misinterpret these packets, this bit layout is
-   the first thing to check against the actual RNS source/spec.
-2. **No encryption/signing.** Real Reticulum destinations of type
-   Single/Link are encrypted end-to-end (X25519 + AES, or Ed25519-signed
-   announces) using an RNS Identity keypair. This bridge does not
-   implement RNS Identity at all — it only handles the packet *shape*, not
-   the cryptographic envelope real single/link destinations require. Until
-   that's added, this bridge can meaningfully interoperate with **Plain**
-   destinations (unencrypted, e.g. broadcast/announce-style traffic) but
-   not encrypted Single/Link traffic.
-3. **No transport-layer routing/path discovery.** Real RNS transport nodes
-   maintain routing tables and path announces; this bridge is packet-shape
-   translation only, one hop at a time — it doesn't implement RNS's
-   transport/path-finding logic.
-4. **`createdAt` has no source.** RNS packets carry no timestamp field at
-   this layer, so `rnsPacketToEnvelope()` currently zeros it. If ordering
-   matters downstream, the envelope's `createdAt` needs to come from
-   wherever the packet was received (radio RX time), not the packet
-   itself.
+## What's still not done
+
+- **No encryption/signing wired in yet.** `RNS::Identity` supports real
+  encrypt/sign (Curve25519 family), but this bridge doesn't construct or
+  hold a live `RNS::Identity` yet — `envelopeToRnsPacket()` takes a
+  caller-supplied `RNS::Destination`, it doesn't mint identity/destination
+  objects itself. A node wiring this up for real traffic needs to own an
+  `RNS::Identity` (loaded via `load_private_key()` once the BIP-32
+  derivation task lands — see `docs/EVENT_KINDS.md` "Key derivation" —
+  not a freshly-generated one) and construct `RNS::Destination`s from it.
+- **No `RNS::Transport`/routing wired in.** This bridge only converts
+  packet *shapes*; it doesn't run microReticulum's `Transport` (path
+  tables, multi-hop routing). `-DRNS_USE_FS`/`-DRNS_PERSIST_PATHS` and a
+  `microStore::FileSystem` adapter are needed for that and are
+  deliberately not enabled yet — first step is validating the shape
+  conversion, not standing up a full transport node.
+- **The RNS Identity and the Nostr identity are cryptographically separate
+  keys** (secp256k1/Schnorr vs. Ed25519/X25519) — they can never literally
+  be "the same key," only both derived from the same root secret once
+  BIP-32 derivation exists. Don't try to unify them into one keypair.
 
 ## What "done" looks like
 
-Before calling this interop-ready: test against a real `rnsd` instance
-(or the reference Python RNS stack) with actual packet captures, fix
-whatever bit-layout mismatches turn up, and decide whether RNS Identity
-support (item 2 above) is in scope or whether this bridge stays
-Plain-destination-only by design.
+A node that owns a real `RNS::Identity` (properly derived, not random),
+constructs `RNS::Destination`s from it, and can send/receive actual
+`RNS::Packet`s over microReticulum's `LoRaInterface` (which itself sits on
+RadioLib — the same library our `hal_lora_sx1262` already uses) — at that
+point this bridge is interop-tested, not just shape-compatible.

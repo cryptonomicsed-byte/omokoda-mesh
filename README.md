@@ -34,11 +34,12 @@ layering.
   `include/nostr/secp256k1_signer.h`. `src/main.cpp` now signs and logs a
   full Nostr event end-to-end (not yet published anywhere — no relay
   transport wired in).
-- Reticulum bridge (`Envelope` <-> RNS packet shape): **implemented**
-  (`lib/reticulum_bridge`), packet-shape only — no RNS Identity
-  encryption/signing, no transport routing. See
-  `docs/RETICULUM_BRIDGE.md` for exact gaps before treating it as
-  interop-tested against real Reticulum nodes.
+- Reticulum bridge: **implemented against the real
+  [microReticulum](https://github.com/Reticulum-Community/microReticulum)
+  library** (`lib/reticulum_bridge`), not a hand-rolled packet format —
+  converts `Envelope` <-> real `RNS::Packet`/`RNS::Destination`. No RNS
+  Identity/transport wired in yet (still needs a real derived key, not a
+  random one — see `docs/RETICULUM_BRIDGE.md`).
 - SX1276, CC1101, BLE, WiFi HALs and the Meshtastic bridge (superseded by
   the `omokoda-mesh-firmware` fork instead): **stubs, not yet
   implemented**.
@@ -78,8 +79,12 @@ layering.
   adapted for embedded targets; our own config header
   (`lib/crypto_secp256k1/libsecp256k1-config.h`) enables the
   EXTRAKEYS+SCHNORRSIG modules the wrapper doesn't turn on by default.
-- `lib/reticulum_bridge` — `Envelope` <-> RNS packet-shape conversion,
-  implemented (no RNS Identity crypto yet — see `docs/RETICULUM_BRIDGE.md`).
+- `lib/reticulum_bridge` — `Envelope` <-> real microReticulum
+  `RNS::Packet`/`RNS::Destination` conversion (no RNS Identity crypto
+  wired in yet — see `docs/RETICULUM_BRIDGE.md`).
+- `vendor/microReticulum` — git submodule, pinned reference copy of the
+  real Reticulum C++ port actually pulled into the build via
+  `platformio.ini` `lib_deps`.
 - `lib/meshtastic_bridge` — stub; superseded by the
   `omokoda-mesh-firmware` fork for real Meshtastic-mesh interop.
 - `docs/EVENT_KINDS.md` — Nostr event kind allocation (custom: 20000/20001/

@@ -13,12 +13,18 @@ allowed to become a second root.**
 
 ## 2. Reticulum is an optional bridge, not core
 
-Reticulum remains a supported transport/interface (`lib/reticulum_bridge`,
-still a stub) for delay-tolerant / offline mesh scenarios, but it is no
-longer positioned as a peer identity layer alongside Nostr. A Reticulum
-destination hash is metadata on an envelope (`reticulum_dest` tag), not an
-alternate identity. If Reticulum is unavailable or unwanted on a given
-deployment, the node loses nothing identity-wise — Nostr already covers it.
+Reticulum remains a supported transport/interface for delay-tolerant /
+offline mesh scenarios, but it is no longer positioned as a peer identity
+layer alongside Nostr. A Reticulum destination hash is metadata on an
+envelope (`reticulum_dest` tag), not an alternate identity. If Reticulum is
+unavailable or unwanted on a given deployment, the node loses nothing
+identity-wise — Nostr already covers it.
+
+`lib/reticulum_bridge` bridges to the real
+**[microReticulum](https://github.com/Reticulum-Community/microReticulum)**
+library (Apache-2.0, real RNS port, ESP32-native), not a hand-rolled packet
+format — see `docs/RETICULUM_BRIDGE.md` for what changed and what's still
+missing (RNS Identity, transport routing).
 
 ## 3. Meshtastic core is forked, not wrapped (revised 2026-08-29)
 
@@ -105,13 +111,13 @@ detail:
   std-only Rust crate with no FFI/`no_std` target, so it can't be linked
   directly — the derivation needs reimplementing in C++ against our
   already-vendored secp256k1. Not yet done.
-- **Reticulum bridge missing a real layer**: `Witness-firmware`'s
-  `witness_rns_identity.py` uses the actual `RNS` library and establishes
-  a two-layer signature model (content-level Schnorr + transport-level
-  RNS Identity/Ed25519) that our `reticulum_bridge` doesn't yet have — see
-  `docs/RETICULUM_BRIDGE.md` gap #2. It also names **microReticulum** as
-  the real embedded/C target, worth evaluating against our hand-rolled
-  `RnsPacket` before extending it further.
+- **Reticulum bridge was hand-rolled, now real**: checked microReticulum
+  as `Witness-firmware` suggested — real, maintained, Apache-2.0, already
+  uses the same `RadioLib`/`ArduinoJson` stack this repo does. Swapped the
+  hand-rolled `RnsPacket` guess for a real bridge against microReticulum's
+  `RNS::Packet`/`RNS::Destination`. RNS Identity (the real transport-level
+  Ed25519/X25519 layer `witness_rns_identity.py` uses) is not wired in yet
+  — see `docs/RETICULUM_BRIDGE.md`.
 - **What was already right**: the Schnorr/NIP-01-shaped node identity
   approach (`Secp256k1NostrSigner`) is confirmed correct — it's the exact
   same primitive `Witness-firmware`'s `WitnessIdentity` uses independently
