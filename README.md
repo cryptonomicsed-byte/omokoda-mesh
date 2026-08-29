@@ -27,13 +27,18 @@ layering.
   `Secp256k1NostrSigner` (`lib/crypto_secp256k1`) does actual BIP-340
   Schnorr signing via a vendored libsecp256k1 build (`vendor/secp256k1-embedded`,
   EXTRAKEYS+SCHNORRSIG modules enabled). Key material comes from a
-  pluggable `Secp256k1KeySource`; the default `NvsSecp256k1KeySource` is a
-  dev/standalone fallback (raw key in ESP32 NVS, no secure element) — a
-  node wired to real ecosystem BIPON39/NIP-06-derived keys should supply
-  its own `Secp256k1KeySource` instead. See
+  pluggable `Secp256k1KeySource`; `main.cpp` currently uses
+  `NvsSecp256k1KeySource` (random key, dev/standalone fallback). See
   `include/nostr/secp256k1_signer.h`. `src/main.cpp` now signs and logs a
   full Nostr event end-to-end (not yet published anywhere — no relay
   transport wired in).
+- **Real BIP-32 key derivation**: **implemented** —
+  `include/nostr/bip32_derivation.h` + `lib/crypto_secp256k1/bip32_derivation.cpp`
+  reimplement BIP-32 hardened derivation in C++ (matching `BIPON39`'s math
+  exactly), and `DerivedSecp256k1KeySource` wires it into a real key
+  source at `m/44'/20000'/<node_index>'/0'`, minipae's own convention. Not
+  yet wired as `main.cpp`'s default (still uses the random NVS key) — see
+  `docs/EVENT_KINDS.md` "Open items".
 - Reticulum bridge: **implemented against the real
   [microReticulum](https://github.com/Reticulum-Community/microReticulum)
   library** (`lib/reticulum_bridge`), not a hand-rolled packet format —

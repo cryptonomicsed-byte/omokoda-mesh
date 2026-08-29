@@ -62,22 +62,37 @@ appended to the routed packet) is a different trust layer from a
 transport-level identity signature (RNS Identity, not yet wired into
 `reticulum_bridge`).
 
-## Key derivation — must match the real ecosystem convention, not invent one
+## Key derivation — matches the real ecosystem convention (implemented 2026-08-29)
 
 `minipae/docs/KEY_MANAGEMENT.md` locks the actual pattern: hardened BIP-32
 on secp256k1, `m/44'/<kind-number>'/<agent_index>'/<owner_index>'`, derived
 from the same master BIP39 seed Omo-Koda2 already uses — minipae reuses its
-own NIP-AE kind (30174) as the BIP-32 purpose segment. Following that same
-convention (not inventing a new derivation scheme): omokoda-mesh node keys
-should derive at `m/44'/20000'/<node_index>'/0'` (using our own primary kind
-number as the purpose segment, same pattern minipae uses). **Not yet
-implemented** — `lib/crypto_secp256k1`'s `NvsSecp256k1KeySource` still
-generates a random key, not a derived one. `BIPON39` has the correct NIP-06
-derivation math (`m/44'/1237'/<account>'/0/0`) but is a std-only Rust crate
-with no `no_std`/FFI target, so it can't be linked into this firmware
-directly yet — the BIP-32 derivation needs to be implemented in C++ against
-our already-vendored secp256k1, matching BIPON39's math exactly so the same
-master seed produces cross-compatible keys.
+own NIP-AE kind (30174) as the BIP-32 purpose segment. omokoda-mesh follows
+the same convention: `m/44'/20000'/<node_index>'/0'` (own primary kind
+number as the purpose segment).
+
+**Implemented**: `include/nostr/bip32_derivation.h` +
+`lib/crypto_secp256k1/bip32_derivation.cpp` reimplement BIP-32 hardened
+derivation (HMAC-SHA512 master key from a `"Bitcoin seed"`-keyed HMAC,
+hardened CKDpriv via `secp256k1_ec_seckey_tweak_add`) directly in C++
+against the already-vendored secp256k1 — matching `BIPON39`'s
+`DerivationMode::Bip32` math exactly (verified against
+`BIPON39/src/derivation.rs` directly, not from memory), so the same master
+seed produces cross-compatible keys. This exists because `BIPON39` is a
+std-only Rust crate with no `no_std`/FFI target and can't be linked into
+this firmware directly. `DerivedSecp256k1KeySource`
+(`include/nostr/secp256k1_signer.h`) wires this into a real
+`Secp256k1KeySource` — consumes a caller-supplied 64-byte master seed
+(mnemonic-to-seed conversion stays out of scope, owned by BIPON39/ecosystem
+tooling) and a `node_index`, derives at the path above. Only hardened
+derivation is implemented (all segments in both our path and minipae's are
+hardened; non-hardened CKDpriv needs the parent's compressed public key,
+not just its private key, and nothing in this ecosystem's key paths uses it
+yet).
+
+`NvsSecp256k1KeySource` (random key, no derivation) remains available as an
+explicit dev/standalone fallback — real deployments should use
+`DerivedSecp256k1KeySource` instead.
 
 ## IP Root tie-in
 
@@ -124,10 +139,10 @@ built yet.
   ecosystem-wide kind registry exists yet (checked: none of
   Witness-firmware/ip-layer/minipae/BIPON39 maintain one, they just avoid
   collisions ad hoc). Confirm no collision before treating these as locked.
-- BIP-32 derivation (`m/44'/20000'/...`) is documented here but not
-  implemented — see `lib/crypto_secp256k1`. This one is genuinely new
-  porting work (Rust BIPON39 math → C++), not something with an existing
-  NIP to reuse.
 - `reticulum_bridge` now bridges to real microReticulum (see
   `docs/RETICULUM_BRIDGE.md`) but doesn't yet own a real `RNS::Identity` —
   transport-level RNS signing/encryption isn't wired in yet.
+- `main.cpp` still defaults to `NvsSecp256k1KeySource` (random key), not
+  `DerivedSecp256k1KeySource` — wiring a real master seed into a node's
+  boot path (where does the 64-byte seed come from on real hardware?) is
+  still open.

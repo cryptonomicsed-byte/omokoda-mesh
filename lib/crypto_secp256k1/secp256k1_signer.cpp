@@ -1,4 +1,5 @@
 #include "nostr/secp256k1_signer.h"
+#include "nostr/bip32_derivation.h"
 #include <secp256k1.h>
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_schnorrsig.h>
@@ -94,6 +95,31 @@ bool NvsSecp256k1KeySource::provisionIfAbsent() {
 #else
     return false;
 #endif
+}
+
+// ---- DerivedSecp256k1KeySource ----
+
+DerivedSecp256k1KeySource::DerivedSecp256k1KeySource(const uint8_t seed[64], uint32_t nodeIndex)
+    : _nodeIndex(nodeIndex) {
+    std::memcpy(_seed, seed, 64);
+}
+
+bool DerivedSecp256k1KeySource::getPrivateKey(uint8_t out[32]) {
+    // m/44'/20000'/<node_index>'/0' — all hardened, matching minipae's
+    // own m/44'/<kind>'/agent'/owner' convention. 20000 is omokoda-mesh's
+    // primary kind (Mesh Packet Route), reused as the BIP-32 purpose
+    // segment the same way minipae reuses its own kind 30174. See
+    // docs/EVENT_KINDS.md "Key derivation".
+    const uint32_t path[] = {44, 20000, _nodeIndex, 0};
+
+    Bip32Key derived;
+    if (!bip32DeriveHardenedPath(_seed, sizeof(_seed), path, 4, derived)) {
+        return false;
+    }
+
+    std::memcpy(out, derived.key, 32);
+    std::memset(derived.key, 0, sizeof(derived.key)); // best-effort scrub
+    return true;
 }
 
 // ---- Secp256k1NostrSigner ----

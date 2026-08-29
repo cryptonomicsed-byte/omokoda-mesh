@@ -7,13 +7,20 @@
 // concrete class the interface in lib/nostr_bridge/nostr_event.h was left
 // abstract for.
 //
-// Deliberately out of scope here: deriving the private key from a
-// BIPON39/NIP-06 mnemonic. That derivation is ecosystem-wide tooling
-// (Omo-Koda2 wallet path) and shouldn't be duplicated in firmware. This
-// signer instead takes the raw 32-byte secp256k1 private key from a
-// pluggable Secp256k1KeySource — plug in a source that already holds
-// ecosystem-derived key material, or the provided NVS-backed fallback for
-// standalone/dev use.
+// Key material comes from a pluggable Secp256k1KeySource. Two concrete
+// sources are provided:
+//   - NvsSecp256k1KeySource: random key in ESP32 NVS, dev/standalone
+//     fallback, no relation to any master seed.
+//   - DerivedSecp256k1KeySource: real BIP-32 hardened derivation
+//     (nostr/bip32_derivation.h) from a master seed, at
+//     m/44'/20000'/<node_index>'/0' (docs/EVENT_KINDS.md "Key
+//     derivation"), matching BIPON39's own derivation math exactly.
+//
+// Still deliberately out of scope: turning a BIP-39 mnemonic into the
+// 64-byte seed DerivedSecp256k1KeySource consumes. That's mnemonic
+// wordlist + PBKDF2 logic, genuinely separate from BIP-32 child
+// derivation, and stays owned by BIPON39/ecosystem-wide tooling — this
+// firmware consumes an already-produced seed, it doesn't own mnemonics.
 
 namespace omokoda {
 
@@ -39,6 +46,27 @@ public:
     // Provisions a new random key if none exists yet. Returns false if a
     // key was already present (does not overwrite) or on storage error.
     bool provisionIfAbsent();
+};
+
+// Real BIP-32-derived key source: m/44'/20000'/<node_index>'/0' (hardened
+// throughout, matching minipae's own m/44'/30174'/agent'/owner' pattern —
+// see docs/EVENT_KINDS.md "Key derivation"). The 64-byte master seed is
+// supplied by the caller (e.g. from BIPON39's mnemonic-to-seed step,
+// happening elsewhere) — this class only owns the BIP-32 child derivation,
+// not the seed's own provenance. Prefer this over
+// NvsSecp256k1KeySource for any node that should be part of the
+// ecosystem's real key hierarchy rather than holding an unrelated key.
+class DerivedSecp256k1KeySource : public Secp256k1KeySource {
+public:
+    // seed must be exactly 64 bytes (a BIP-39 seed). nodeIndex is the
+    // per-node hardened index at m/44'/20000'/<nodeIndex>'/0'.
+    DerivedSecp256k1KeySource(const uint8_t seed[64], uint32_t nodeIndex);
+
+    bool getPrivateKey(uint8_t out[32]) override;
+
+private:
+    uint8_t _seed[64];
+    uint32_t _nodeIndex;
 };
 
 class Secp256k1NostrSigner : public NostrSigner {
