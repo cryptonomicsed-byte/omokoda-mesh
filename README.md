@@ -57,10 +57,11 @@ transport hops). It is not a separate/competing identity or signing scheme.
   schema for cross-network packets.
 - `docs/ARCHITECTURE.md` — core-vs-optional layering: Nostr identity,
   Reticulum bridge, Meshtastic wrapping, Arch OS, OSOVM tie-in.
-- `vendor/meshtastic-android` — git submodule, upstream reference only
-  (not forked). The firmware side is now a real fork instead of a
-  submodule — see `cryptonomicsed-byte/omokoda-mesh-firmware` and
-  `docs/ARCHITECTURE.md` §3.
+- `docs/MESHTASTIC_ANDROID_PATTERNS.md` — patterns extracted from
+  Meshtastic-Android for a future companion app (the `RadioTransport`/KMP
+  shape); the full repo was cloned, checked, and removed — not kept as a
+  submodule. The firmware side is a real fork, not a submodule — see
+  `cryptonomicsed-byte/omokoda-mesh-firmware` and `docs/ARCHITECTURE.md` §3.
 
 ## Build
 

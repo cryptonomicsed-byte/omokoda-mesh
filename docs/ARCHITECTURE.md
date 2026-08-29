@@ -34,10 +34,14 @@ routing/flooding and radio HAL/board support stay upstream, unmodified, so
 the fork remains a first-class participant on existing public Meshtastic
 meshes.
 
-`Meshtastic-Android` remains a vendored **reference submodule** (not
-forked) under `vendor/meshtastic-android` — the identity swap is a
-firmware/protocol-level change; the companion app doesn't need its own
-fork unless/until the protobuf extension requires app-side awareness.
+`Meshtastic-Android` was cloned, checked for reusable patterns, and then
+**removed** — not kept as a submodule. It turned out to already be
+mid-transition to Kotlin Multiplatform (Android/iOS/desktop shared
+business logic) with a clean `RadioTransport` interface unifying
+BLE/Serial/TCP. That shape is documented in
+`docs/MESHTASTIC_ANDROID_PATTERNS.md` for reuse whenever a companion app
+gets built — the identity swap itself is firmware/protocol-level and
+doesn't need a fork of the app.
 
 `omokoda-mesh` (this repo, the from-scratch universal firmware) and
 `omokoda-mesh-firmware` (the Meshtastic fork) are siblings, not
@@ -45,10 +49,6 @@ competitors — use this repo for nodes needing no Meshtastic-mesh interop,
 use the fork for nodes that must be native Meshtastic-mesh participants.
 Both root identity in Nostr.
 
-Update the reference submodule deliberately, not automatically:
-```
-git submodule update --remote vendor/meshtastic-android
-```
 
 ## 4. Arch Linux is the foundation OS
 
