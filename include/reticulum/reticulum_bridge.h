@@ -44,4 +44,24 @@ RNS::Packet envelopeToRnsPacket(const Envelope& env, const RNS::Destination& des
 // implementation instead of our own SHA256 truncation.
 RNS::Bytes reticulumNameHash(const char* appName, const char* aspects);
 
+// Derives a real RNS::Identity from the node's own BIP-32 master seed —
+// the transport-level identity layer Witness-firmware's
+// witness_rns_identity.py establishes as the real ecosystem pattern,
+// distinct from Secp256k1NostrSigner's content-level Schnorr identity
+// (see docs/RETICULUM_BRIDGE.md "Two-layer signature model"). RNS
+// identities are Ed25519 (signing) + X25519 (encryption) — a different
+// curve family from secp256k1, so this cannot literally reuse the Nostr
+// keypair; instead it derives two more BIP-32 hardened children from the
+// SAME master seed (m/44'/20000'/<node_index>'/1' for the X25519 half,
+// .../2' for the Ed25519 half) and feeds that 64 bytes into
+// RNS::Identity::load_private_key(), so both identities are still rooted
+// in one secret even though they're cryptographically separate keys.
+//
+// seed must be the same 64-byte master seed passed to
+// DerivedSecp256k1KeySource for this node — same root, sibling path.
+// Returns an identity with create_keys=false that failed to load
+// (unusable) if derivation fails; check identity.get_public_key() isn't
+// empty, or wrap the bool return below in production use.
+bool deriveRnsIdentity(const uint8_t seed[64], uint32_t nodeIndex, RNS::Identity& out);
+
 } // namespace omokoda

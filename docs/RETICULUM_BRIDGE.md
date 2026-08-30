@@ -42,26 +42,52 @@ hand-rolled version — it did.
 3. **Destination hashing** — `RNS::Destination::name_hash()` (real
    implementation) replaces the hand-rolled truncated-SHA256 helper.
 
+## Real RNS::Identity, derived not random (implemented 2026-08-29)
+
+`deriveRnsIdentity(seed, nodeIndex, out)` in `reticulum_bridge` derives a
+real `RNS::Identity` from the same 64-byte master seed
+`DerivedSecp256k1KeySource` uses for the content-level Nostr identity —
+not a freshly-generated random one. Because RNS identities are
+Ed25519 (signing) + X25519 (encryption), a different curve family from
+secp256k1, this can't reuse the Nostr keypair bit-for-bit; instead it
+derives two more BIP-32 hardened children from the same seed
+(`m/44'/20000'/<node_index>'/1'` for the X25519 half, `.../2'` for the
+Ed25519 half) and feeds the concatenated 64 bytes into
+`RNS::Identity::load_private_key()`. Verified against
+`vendor/microReticulum/src/Identity.cpp`'s actual `load_private_key()`
+implementation directly (confirms the exact byte layout: first 32 bytes
+X25519 private key, next 32 bytes Ed25519 private seed — not assumed from
+the general RNS spec description) and `Type::Identity::KEYSIZE` (512
+bits = 64 bytes total).
+
+This gives every node the **two-layer signature model**
+`Witness-firmware`'s `witness_rns_identity.py` establishes as the real
+ecosystem pattern: `Secp256k1NostrSigner` signs content (BIP-340 Schnorr,
+NIP-01-shaped, e.g. the kind-20000 packet event or the kind-1902 relay
+attestation), while the derived `RNS::Identity` signs/encrypts at the
+transport layer via its own real `sign()`/`validate()`/`encrypt()`/
+`decrypt()` methods — same shape as `WitnessIdentity` vs.
+`RNSWitnessIdentity` in `Witness-firmware`. Both keys are rooted in one
+master seed even though they're cryptographically separate — see
+`deriveRnsIdentity()`'s doc comment for why that's a legitimate multi-curve
+KDF pattern, not a claim the curves are unified.
+
 ## What's still not done
 
-- **No encryption/signing wired in yet.** `RNS::Identity` supports real
-  encrypt/sign (Curve25519 family), but this bridge doesn't construct or
-  hold a live `RNS::Identity` yet — `envelopeToRnsPacket()` takes a
-  caller-supplied `RNS::Destination`, it doesn't mint identity/destination
-  objects itself. A node wiring this up for real traffic needs to own an
-  `RNS::Identity` (loaded via `load_private_key()` once the BIP-32
-  derivation task lands — see `docs/EVENT_KINDS.md` "Key derivation" —
-  not a freshly-generated one) and construct `RNS::Destination`s from it.
+- **Not wired into `main.cpp` yet.** Same open question as
+  `DerivedSecp256k1KeySource`: where does a real node's 64-byte master
+  seed come from on boot (provisioning flow, not yet designed) — see
+  `docs/EVENT_KINDS.md` "Open items". `deriveRnsIdentity()` exists and is
+  callable, but nothing in the firmware calls it yet.
+- **`envelopeToRnsPacket()` still takes a caller-supplied
+  `RNS::Destination`** rather than constructing one from the derived
+  identity itself — a node wiring this up for real traffic needs to build
+  its own `RNS::Destination` from `deriveRnsIdentity()`'s output.
 - **No `RNS::Transport`/routing wired in.** This bridge only converts
-  packet *shapes*; it doesn't run microReticulum's `Transport` (path
-  tables, multi-hop routing). `-DRNS_USE_FS`/`-DRNS_PERSIST_PATHS` and a
-  `microStore::FileSystem` adapter are needed for that and are
-  deliberately not enabled yet — first step is validating the shape
-  conversion, not standing up a full transport node.
-- **The RNS Identity and the Nostr identity are cryptographically separate
-  keys** (secp256k1/Schnorr vs. Ed25519/X25519) — they can never literally
-  be "the same key," only both derived from the same root secret once
-  BIP-32 derivation exists. Don't try to unify them into one keypair.
+  packet *shapes* and now owns real identity material; it still doesn't
+  run microReticulum's `Transport` (path tables, multi-hop routing).
+  `-DRNS_USE_FS`/`-DRNS_PERSIST_PATHS` and a `microStore::FileSystem`
+  adapter are needed for that and are deliberately not enabled yet.
 
 ## What "done" looks like
 

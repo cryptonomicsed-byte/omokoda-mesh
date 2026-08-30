@@ -116,8 +116,12 @@ detail:
   uses the same `RadioLib`/`ArduinoJson` stack this repo does. Swapped the
   hand-rolled `RnsPacket` guess for a real bridge against microReticulum's
   `RNS::Packet`/`RNS::Destination`. RNS Identity (the real transport-level
-  Ed25519/X25519 layer `witness_rns_identity.py` uses) is not wired in yet
-  — see `docs/RETICULUM_BRIDGE.md`.
+  Ed25519/X25519 layer `witness_rns_identity.py` uses) is now wired too —
+  `deriveRnsIdentity()` derives a real one from the same master seed as
+  the Nostr key (two more BIP-32 hardened children, fed into
+  `RNS::Identity::load_private_key()`), giving the full two-layer
+  signature model. Not yet called from `main.cpp` — see
+  `docs/RETICULUM_BRIDGE.md`.
 - **What was already right**: the Schnorr/NIP-01-shaped node identity
   approach (`Secp256k1NostrSigner`) is confirmed correct — it's the exact
   same primitive `Witness-firmware`'s `WitnessIdentity` uses independently

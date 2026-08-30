@@ -42,9 +42,13 @@ layering.
 - Reticulum bridge: **implemented against the real
   [microReticulum](https://github.com/Reticulum-Community/microReticulum)
   library** (`lib/reticulum_bridge`), not a hand-rolled packet format —
-  converts `Envelope` <-> real `RNS::Packet`/`RNS::Destination`. No RNS
-  Identity/transport wired in yet (still needs a real derived key, not a
-  random one — see `docs/RETICULUM_BRIDGE.md`).
+  converts `Envelope` <-> real `RNS::Packet`/`RNS::Destination`.
+  `deriveRnsIdentity()` derives a real `RNS::Identity` (Ed25519+X25519)
+  from the same master seed as the Nostr key, giving the two-layer
+  signature model `Witness-firmware` establishes as the real pattern —
+  see `docs/RETICULUM_BRIDGE.md`. Not yet called from `main.cpp` (same
+  master-seed-provisioning gap as `DerivedSecp256k1KeySource`). No
+  `RNS::Transport`/routing wired in.
 - SX1276, CC1101, BLE, WiFi HALs and the Meshtastic bridge (superseded by
   the `omokoda-mesh-firmware` fork instead): **stubs, not yet
   implemented**.
