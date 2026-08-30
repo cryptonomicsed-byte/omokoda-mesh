@@ -74,11 +74,10 @@ KDF pattern, not a claim the curves are unified.
 
 ## What's still not done
 
-- **Not wired into `main.cpp` yet.** Same open question as
-  `DerivedSecp256k1KeySource`: where does a real node's 64-byte master
-  seed come from on boot (provisioning flow, not yet designed) — see
-  `docs/EVENT_KINDS.md` "Open items". `deriveRnsIdentity()` exists and is
-  callable, but nothing in the firmware calls it yet.
+- **Not wired into `main.cpp` yet.** The master-seed provisioning
+  question is now designed (`docs/SEED_PROVISIONING.md`), but
+  `deriveRnsIdentity()` exists and is callable without anything in the
+  firmware's boot path calling it yet — same as `DerivedSecp256k1KeySource`.
 - **`envelopeToRnsPacket()` still takes a caller-supplied
   `RNS::Destination`** rather than constructing one from the derived
   identity itself — a node wiring this up for real traffic needs to build

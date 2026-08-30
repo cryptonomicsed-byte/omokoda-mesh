@@ -139,10 +139,13 @@ built yet.
   ecosystem-wide kind registry exists yet (checked: none of
   Witness-firmware/ip-layer/minipae/BIPON39 maintain one, they just avoid
   collisions ad hoc). Confirm no collision before treating these as locked.
-- `reticulum_bridge` now bridges to real microReticulum (see
-  `docs/RETICULUM_BRIDGE.md`) but doesn't yet own a real `RNS::Identity` —
-  transport-level RNS signing/encryption isn't wired in yet.
 - `main.cpp` still defaults to `NvsSecp256k1KeySource` (random key), not
-  `DerivedSecp256k1KeySource` — wiring a real master seed into a node's
-  boot path (where does the 64-byte seed come from on real hardware?) is
-  still open.
+  `DerivedSecp256k1KeySource`/`NvsMasterSeedSource` — the master-seed
+  *provisioning* question is now designed and partly implemented (see
+  `docs/SEED_PROVISIONING.md`: `NvsMasterSeedSource` +
+  `SerialSeedProvisioner`), but nothing in `main.cpp`'s boot path calls it
+  yet. Switching the default is the next step, not a design gap.
+- `docs/SEED_PROVISIONING.md` Tier 1 (Cardputer-class mnemonic entry) is
+  deliberately deferred — needs either a firmware-embedded BIP-39
+  wordlist + PBKDF2, or a `no_std`/FFI BIPON39 target, neither of which
+  exist yet.

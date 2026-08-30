@@ -36,9 +36,15 @@ layering.
   `include/nostr/bip32_derivation.h` + `lib/crypto_secp256k1/bip32_derivation.cpp`
   reimplement BIP-32 hardened derivation in C++ (matching `BIPON39`'s math
   exactly), and `DerivedSecp256k1KeySource` wires it into a real key
-  source at `m/44'/20000'/<node_index>'/0'`, minipae's own convention. Not
-  yet wired as `main.cpp`'s default (still uses the random NVS key) — see
-  `docs/EVENT_KINDS.md` "Open items".
+  source at `m/44'/20000'/<node_index>'/0'`, minipae's own convention.
+- **Master-seed provisioning**: **designed and partly implemented** — see
+  `docs/SEED_PROVISIONING.md`. `NvsMasterSeedSource` (persisted seed) +
+  `SerialSeedProvisioner` (one-shot 64-byte seed injection over serial
+  from a trusted provisioning host) cover Tier 2 (headless boards, most
+  of them). Tier 1 (Cardputer-class mnemonic entry) is deliberately
+  deferred pending a firmware-usable BIPON39 target. None of this is
+  wired into `main.cpp`'s default boot path yet — it still uses the
+  random NVS key.
 - Reticulum bridge: **implemented against the real
   [microReticulum](https://github.com/Reticulum-Community/microReticulum)
   library** (`lib/reticulum_bridge`), not a hand-rolled packet format —
@@ -83,7 +89,9 @@ layering.
 - `lib/nostr_bridge` — `Envelope` <-> Nostr event conversion + NIP-01
   id/canonical serialization, implemented.
 - `lib/crypto_secp256k1` — real `NostrSigner` implementation
-  (BIP-340 Schnorr via vendored libsecp256k1) + NVS dev keystore.
+  (BIP-340 Schnorr via vendored libsecp256k1) + NVS dev keystore + real
+  BIP-32 derivation (`bip32_derivation.cpp`) + master-seed provisioning
+  (`master_seed.cpp`, see `docs/SEED_PROVISIONING.md`).
 - `vendor/secp256k1-embedded` — git submodule, upstream libsecp256k1
   adapted for embedded targets; our own config header
   (`lib/crypto_secp256k1/libsecp256k1-config.h`) enables the
