@@ -70,15 +70,29 @@ Tier-2 field nodes it pairs with — i.e. Tier 3 is the source, Tier 2 is a
 consumer of Tier 3's output. Not designed further here; belongs to
 `omokoda-mesh-os`/Omo-Koda2, not this repo.
 
-## Where the seed goes once provisioned
+## Where the seed goes once provisioned (wired 2026-08-29)
 
-`NvsMasterSeedSource` (implements `MasterSeedSource`) reads the persisted
-seed from NVS on every subsequent boot. `DerivedSecp256k1KeySource` and
-`deriveRnsIdentity()` both consume a raw `const uint8_t[64]` today (caller
-supplies it) — wiring `NvsMasterSeedSource` into `main.cpp`'s boot path is
-the next step once a node actually needs to run with derived (not random)
-keys, and is intentionally left as the caller's choice of which
-`MasterSeedSource` to use rather than hardcoded.
+`src/main.cpp`'s `setup()` now runs the real boot path: check
+`NvsMasterSeedSource::getSeed()`; if absent, enter a bounded provisioning
+window (`SerialSeedProvisioner::provisionFromStream()`,
+`OMOKODA_SEED_PROVISION_TIMEOUT_MS`, default 5s); if a seed is available
+either way, construct `DerivedSecp256k1KeySource` (Nostr identity) and call
+`deriveRnsIdentity()` (RNS transport identity) from it, at
+`OMOKODA_NODE_INDEX` (a build-flag-overridable node index, default 0 — see
+"Per-node index" below). If no seed is available after the provisioning
+window, the node falls back to `NvsSecp256k1KeySource` (random key) so it
+still boots usable for testing, with a loud log line making clear this
+isn't a real derived identity.
+
+### Per-node index — still an open gap
+
+`OMOKODA_NODE_INDEX` defaults to `0` and must be overridden per board
+(`-D OMOKODA_NODE_INDEX=<n>` in `platformio.ini`) for any fleet with more
+than one node sharing the same master seed — otherwise two nodes derive
+the *same* key and collide. There is no real per-node index assignment
+scheme yet (sequential flashing-time counter? derived from a board-unique
+ID like the ESP32's factory MAC? operator-assigned?) — this is a genuine
+open design question, not resolved by this wiring pass.
 
 ## Explicitly not solved here
 

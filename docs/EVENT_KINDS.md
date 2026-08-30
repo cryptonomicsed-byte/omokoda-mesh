@@ -139,12 +139,14 @@ built yet.
   ecosystem-wide kind registry exists yet (checked: none of
   Witness-firmware/ip-layer/minipae/BIPON39 maintain one, they just avoid
   collisions ad hoc). Confirm no collision before treating these as locked.
-- `main.cpp` still defaults to `NvsSecp256k1KeySource` (random key), not
-  `DerivedSecp256k1KeySource`/`NvsMasterSeedSource` — the master-seed
-  *provisioning* question is now designed and partly implemented (see
-  `docs/SEED_PROVISIONING.md`: `NvsMasterSeedSource` +
-  `SerialSeedProvisioner`), but nothing in `main.cpp`'s boot path calls it
-  yet. Switching the default is the next step, not a design gap.
+- `main.cpp`'s boot path now uses `NvsMasterSeedSource` +
+  `DerivedSecp256k1KeySource`/`deriveRnsIdentity()` when a seed is
+  available (provisioning via `SerialSeedProvisioner` if not), falling
+  back to the random `NvsSecp256k1KeySource` only if no seed shows up
+  within the provisioning window — see `docs/SEED_PROVISIONING.md`.
+  **Per-node index assignment is still unresolved** (`OMOKODA_NODE_INDEX`
+  defaults to 0, must be manually overridden per board — no real
+  assignment scheme exists yet).
 - `docs/SEED_PROVISIONING.md` Tier 1 (Cardputer-class mnemonic entry) is
   deliberately deferred — needs either a firmware-embedded BIP-39
   wordlist + PBKDF2, or a `no_std`/FFI BIPON39 target, neither of which

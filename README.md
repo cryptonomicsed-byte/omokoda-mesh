@@ -37,14 +37,17 @@ layering.
   reimplement BIP-32 hardened derivation in C++ (matching `BIPON39`'s math
   exactly), and `DerivedSecp256k1KeySource` wires it into a real key
   source at `m/44'/20000'/<node_index>'/0'`, minipae's own convention.
-- **Master-seed provisioning**: **designed and partly implemented** — see
-  `docs/SEED_PROVISIONING.md`. `NvsMasterSeedSource` (persisted seed) +
-  `SerialSeedProvisioner` (one-shot 64-byte seed injection over serial
-  from a trusted provisioning host) cover Tier 2 (headless boards, most
-  of them). Tier 1 (Cardputer-class mnemonic entry) is deliberately
-  deferred pending a firmware-usable BIPON39 target. None of this is
-  wired into `main.cpp`'s default boot path yet — it still uses the
-  random NVS key.
+- **Master-seed provisioning**: **implemented and wired into `main.cpp`'s
+  boot path** — see `docs/SEED_PROVISIONING.md`. `NvsMasterSeedSource`
+  (persisted seed) + `SerialSeedProvisioner` (one-shot 64-byte seed
+  injection over serial from a trusted provisioning host) cover Tier 2
+  (headless boards, most of them). `setup()` checks for a seed, tries
+  serial provisioning if absent, and derives both the Nostr key and the
+  RNS identity from it when available — falling back to a random dev key
+  only if no seed shows up. Tier 1 (Cardputer-class mnemonic entry)
+  stays deferred. **Open gap**: per-node index (`OMOKODA_NODE_INDEX`)
+  defaults to 0 and must be manually overridden per board — no real
+  fleet-assignment scheme exists yet.
 - Reticulum bridge: **implemented against the real
   [microReticulum](https://github.com/Reticulum-Community/microReticulum)
   library** (`lib/reticulum_bridge`), not a hand-rolled packet format —
