@@ -13,16 +13,20 @@
 #include "nostr_event.h"
 #include "nostr/secp256k1_signer.h"
 #include "nostr/master_seed.h"
+#include "nostr/node_index.h"
 #include "reticulum/reticulum_bridge.h"
 
-#ifndef OMOKODA_NODE_INDEX
-// Per-node hardened index at m/44'/20000'/<OMOKODA_NODE_INDEX>'/{0,1,2}
-// (see docs/EVENT_KINDS.md "Key derivation" and docs/RETICULUM_BRIDGE.md).
-// Defaults to 0 — real fleets need a real per-node assignment scheme
-// (not designed yet); override with -D OMOKODA_NODE_INDEX=<n> per board
-// until one exists, so at least two nodes sharing a seed don't collide
-// on index 0 by accident.
-#define OMOKODA_NODE_INDEX 0
+// Per-node hardened index at m/44'/20000'/<node index>'/{0,1,2} (see
+// docs/EVENT_KINDS.md "Key derivation" and docs/RETICULUM_BRIDGE.md).
+// Real assignment scheme (docs/SEED_PROVISIONING.md "Per-node index"):
+// derived at runtime from the ESP32's factory eFuse MAC
+// (deriveNodeIndexFromHardwareId()) — globally unique per chip, no
+// external registry needed. -D OMOKODA_NODE_INDEX_OVERRIDE=<n> is an
+// explicit escape hatch (deterministic testing, or a chip whose MAC-derived
+// index needs pinning for some other reason) — normal builds should not
+// set this.
+#ifdef OMOKODA_NODE_INDEX_OVERRIDE
+#define OMOKODA_HAS_NODE_INDEX_OVERRIDE 1
 #endif
 
 // Serial provisioning window: how long setup() waits for a
@@ -48,6 +52,7 @@ static omokoda::Secp256k1NostrSigner* signer = nullptr;
 static RNS::Identity* rnsIdentity = nullptr;
 static bool rnsIdentityReady = false;
 static bool signerReady = false;
+static uint32_t nodeIndex = 0; // set in setup(), see deriveNodeIndexFromHardwareId()
 
 // Waits for a seed over Serial (docs/SEED_PROVISIONING.md Tier 2). Only
 // called when no seed is provisioned yet — never overwrites one that
@@ -64,8 +69,16 @@ static bool tryProvisionSeedFromSerial(uint8_t seed[64]) {
 
 void setup() {
     Serial.begin(115200);
-    Serial.printf("omokoda-mesh %s booting on %s (node index %d)\n",
-                   OMOKODA_MESH_VERSION, OMOKODA_BOARD, OMOKODA_NODE_INDEX);
+
+#if defined(OMOKODA_HAS_NODE_INDEX_OVERRIDE)
+    nodeIndex = OMOKODA_NODE_INDEX_OVERRIDE;
+    Serial.printf("omokoda-mesh %s booting on %s (node index %u, OVERRIDDEN)\n",
+                   OMOKODA_MESH_VERSION, OMOKODA_BOARD, nodeIndex);
+#else
+    nodeIndex = omokoda::deriveNodeIndexFromHardwareId();
+    Serial.printf("omokoda-mesh %s booting on %s (node index %u, from eFuse MAC)\n",
+                   OMOKODA_MESH_VERSION, OMOKODA_BOARD, nodeIndex);
+#endif
 
     radio = &getActiveRadioHAL();
 
@@ -92,13 +105,13 @@ void setup() {
 
     static omokoda::DerivedSecp256k1KeySource* derivedKeySource = nullptr;
     if (haveSeed) {
-        derivedKeySource = new omokoda::DerivedSecp256k1KeySource(seed, OMOKODA_NODE_INDEX);
+        derivedKeySource = new omokoda::DerivedSecp256k1KeySource(seed, nodeIndex);
         activeKeySource = derivedKeySource;
         Serial.println("using real BIP-32-derived key (m/44'/20000'/"
-                        + String(OMOKODA_NODE_INDEX) + "'/0')");
+                        + String(nodeIndex) + "'/0')");
 
         rnsIdentity = new RNS::Identity(false);
-        if (omokoda::deriveRnsIdentity(seed, OMOKODA_NODE_INDEX, *rnsIdentity)) {
+        if (omokoda::deriveRnsIdentity(seed, nodeIndex, *rnsIdentity)) {
             rnsIdentityReady = true;
             Serial.printf("RNS identity hash: %s\n", rnsIdentity->hexhash().c_str());
         } else {

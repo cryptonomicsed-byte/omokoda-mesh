@@ -45,9 +45,10 @@ layering.
   serial provisioning if absent, and derives both the Nostr key and the
   RNS identity from it when available — falling back to a random dev key
   only if no seed shows up. Tier 1 (Cardputer-class mnemonic entry)
-  stays deferred. **Open gap**: per-node index (`OMOKODA_NODE_INDEX`)
-  defaults to 0 and must be manually overridden per board — no real
-  fleet-assignment scheme exists yet.
+  stays deferred. **Node index** comes from
+  `deriveNodeIndexFromHardwareId()` (ESP32 eFuse MAC — globally unique
+  per chip, no external registry needed); `-D OMOKODA_NODE_INDEX_OVERRIDE=<n>`
+  is an explicit escape hatch for testing.
 - Reticulum bridge: **implemented against the real
   [microReticulum](https://github.com/Reticulum-Community/microReticulum)
   library** (`lib/reticulum_bridge`), not a hand-rolled packet format —
@@ -94,7 +95,8 @@ layering.
 - `lib/crypto_secp256k1` — real `NostrSigner` implementation
   (BIP-340 Schnorr via vendored libsecp256k1) + NVS dev keystore + real
   BIP-32 derivation (`bip32_derivation.cpp`) + master-seed provisioning
-  (`master_seed.cpp`, see `docs/SEED_PROVISIONING.md`).
+  (`master_seed.cpp`) + node-index assignment (`node_index.cpp`,
+  MAC-derived) — see `docs/SEED_PROVISIONING.md`.
 - `vendor/secp256k1-embedded` — git submodule, upstream libsecp256k1
   adapted for embedded targets; our own config header
   (`lib/crypto_secp256k1/libsecp256k1-config.h`) enables the

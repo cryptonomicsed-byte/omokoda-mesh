@@ -77,22 +77,40 @@ consumer of Tier 3's output. Not designed further here; belongs to
 window (`SerialSeedProvisioner::provisionFromStream()`,
 `OMOKODA_SEED_PROVISION_TIMEOUT_MS`, default 5s); if a seed is available
 either way, construct `DerivedSecp256k1KeySource` (Nostr identity) and call
-`deriveRnsIdentity()` (RNS transport identity) from it, at
-`OMOKODA_NODE_INDEX` (a build-flag-overridable node index, default 0 — see
-"Per-node index" below). If no seed is available after the provisioning
-window, the node falls back to `NvsSecp256k1KeySource` (random key) so it
-still boots usable for testing, with a loud log line making clear this
-isn't a real derived identity.
+`deriveRnsIdentity()` (RNS transport identity) from it, at the node index
+described below. If no seed is available after the provisioning window,
+the node falls back to `NvsSecp256k1KeySource` (random key) so it still
+boots usable for testing, with a loud log line making clear this isn't a
+real derived identity.
 
-### Per-node index — still an open gap
+### Per-node index (implemented 2026-08-29)
 
-`OMOKODA_NODE_INDEX` defaults to `0` and must be overridden per board
-(`-D OMOKODA_NODE_INDEX=<n>` in `platformio.ini`) for any fleet with more
-than one node sharing the same master seed — otherwise two nodes derive
-the *same* key and collide. There is no real per-node index assignment
-scheme yet (sequential flashing-time counter? derived from a board-unique
-ID like the ESP32's factory MAC? operator-assigned?) — this is a genuine
-open design question, not resolved by this wiring pass.
+Chose MAC-derived over the other two candidates (sequential flashing-time
+counter, operator-assigned) because both of those need an external
+registry mapping chips to indices — exactly the kind of coordination
+dependency a field-deployed mesh node shouldn't require just to boot.
+
+`deriveNodeIndexFromHardwareId()` (`include/nostr/node_index.h`,
+`lib/crypto_secp256k1/node_index.cpp`) derives the index from the ESP32's
+factory-burned eFuse MAC (`ESP.getEfuseMac()`) — globally unique per chip
+(Espressif-guaranteed), permanent, requires zero external bookkeeping. The
+raw MAC is hashed (SHA-256, low 31 bits kept) rather than used directly,
+since a raw MAC's low bits cluster by manufacturer OUI prefix and would
+bias the derived index distribution across a fleet.
+
+`-D OMOKODA_NODE_INDEX_OVERRIDE=<n>` remains an explicit escape hatch
+(deterministic testing, or a chip needing a pinned index for some other
+reason) — normal field builds should not set this.
+
+**Trade-off, stated plainly**: this makes node index a function of which
+physical chip is running, not an operator-chosen number — a node's
+identity is tied to its hardware in a way a sequential counter wouldn't
+be. If a board is ever replaced, the replacement gets a *different* node
+index (different MAC) and therefore a different derived key — re-flashing
+the same seed onto new hardware does not preserve node identity. This
+wasn't treated as a blocker (matches how BIP-32 wallets generally treat
+"new device = new derivation context" as expected, not exceptional) but
+is worth knowing before relying on it.
 
 ## Explicitly not solved here
 

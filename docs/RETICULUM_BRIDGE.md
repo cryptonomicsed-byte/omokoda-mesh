@@ -77,7 +77,8 @@ KDF pattern, not a claim the curves are unified.
 - **Now wired into `main.cpp`'s boot path** (see
   `docs/SEED_PROVISIONING.md`) — `deriveRnsIdentity()` is called during
   setup() when a seed is available, logging the resulting identity hash.
-  Per-node index assignment is still unresolved (defaults to 0).
+  Node index comes from `deriveNodeIndexFromHardwareId()` (ESP32 eFuse
+  MAC), not a manual assignment.
 - **`envelopeToRnsPacket()` still takes a caller-supplied
   `RNS::Destination`** rather than constructing one from the derived
   identity itself — a node wiring this up for real traffic needs to build

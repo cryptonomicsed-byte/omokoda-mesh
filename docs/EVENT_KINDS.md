@@ -144,9 +144,10 @@ built yet.
   available (provisioning via `SerialSeedProvisioner` if not), falling
   back to the random `NvsSecp256k1KeySource` only if no seed shows up
   within the provisioning window — see `docs/SEED_PROVISIONING.md`.
-  **Per-node index assignment is still unresolved** (`OMOKODA_NODE_INDEX`
-  defaults to 0, must be manually overridden per board — no real
-  assignment scheme exists yet).
+  Per-node index is derived from the ESP32's factory eFuse MAC
+  (`deriveNodeIndexFromHardwareId()`), no external registry needed — see
+  `docs/SEED_PROVISIONING.md` "Per-node index" for the trade-off (node
+  identity is now tied to physical hardware, not operator-assigned).
 - `docs/SEED_PROVISIONING.md` Tier 1 (Cardputer-class mnemonic entry) is
   deliberately deferred — needs either a firmware-embedded BIP-39
   wordlist + PBKDF2, or a `no_std`/FFI BIPON39 target, neither of which
