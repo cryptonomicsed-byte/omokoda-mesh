@@ -42,6 +42,29 @@ packet event — there's no reason for mesh firmware to mint a competing
 kind for the same concept. See `lib/nostr_bridge/nostr_event.h`'s
 `nostrBuildRelayAttestation()` for the implementation.
 
+## Meshtastic bridging (implemented 2026-09-04)
+
+`lib/meshtastic_bridge` converts between `Envelope` and a Meshtastic
+`MeshPacket`, so a frame heard on a Meshtastic channel becomes an envelope
+like any other and bridges onto Nostr as a kind-20000 event through the same
+path as everything else. Field numbers are from `meshtastic/protobufs`
+`mesh.proto`, read directly rather than from memory, per the custom-fit rule
+above. No Meshtastic source is vendored or copied -- see that library's
+README for the GPLv3 note.
+
+Two mappings are deliberately empty and should stay that way:
+
+- **`originPubkeyHex`** -- a Meshtastic `from` is a 32-bit node number the
+  device assigns itself, not a key. Putting it in a field consumers read as a
+  public key would let a node number be mistaken for an identity. The gateway
+  signs the kind-20000 event with its own key; the node number is data about
+  the frame, not a claim about who sent it.
+- **`hopTrail`** -- Meshtastic relays do not sign what they forward. What is
+  carried is `hop_start - hop_limit`, and `meshtasticHopsTaken()` returns
+  `-1`, not `0`, when `hop_start` is unset: firmware older than that field
+  does not send one, and reporting `0` would claim every such packet arrived
+  direct.
+
 ## Required tags (kind 20000/20001/20003)
 
 - `["network", "<nostr|reticulum|meshtastic|lorawan|depin|local>"]` — origin network, always present.
@@ -132,6 +155,26 @@ built yet.
 - **NIP-42/NIP-65** — relay auth (kind 22242) and relay-list announcement,
   if/when gateway nodes need to authenticate to or announce relays
   themselves rather than just publishing.
+
+## The payload gap (open)
+
+`envelopeToNostrEvent()` puts the origin pubkey in `content` and **drops the
+payload bytes**, by its own comment: raw payloads are meaningful only to nodes
+that already share the binary envelope form. That is a defensible firmware
+trade-off and it is a real limit for a gateway consumer, which is not on the
+radio and cannot fetch the payload over the originating transport.
+
+Vantage's side works around it rather than around the firmware: a gateway
+submits the raw frame alongside the signed event
+(`POST /api/meshnet/meshtastic`) and the instance checks the frame *against*
+the tags the gateway already signed -- packet id, hop count and origin network
+must agree. The frame stays untrusted; the binding is what gives it standing.
+A gateway can submit any bytes, but not bytes that contradict its own
+signature.
+
+If the payload is ever to travel on the event itself, base64 in `content` is
+the obvious shape, and the cost is ESP32 CPU and a larger event. That trade
+has not been made here.
 
 ## Open items
 

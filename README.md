@@ -49,6 +49,15 @@ layering.
   `deriveNodeIndexFromHardwareId()` (ESP32 eFuse MAC — globally unique
   per chip, no external registry needed); `-D OMOKODA_NODE_INDEX_OVERRIDE=<n>`
   is an explicit escape hatch for testing.
+- Meshtastic bridge: **implemented** (`lib/meshtastic_bridge`,
+  `include/meshtastic/meshtastic_bridge.h`) -- `Envelope` <-> `MeshPacket`
+  for the fields the bridge maps, with field numbers read directly from
+  `meshtastic/protobufs` `mesh.proto` and an independent encoder/decoder (no
+  Meshtastic source vendored or copied; see that library's README for the
+  GPLv3 note). Host-testable with no PlatformIO toolchain:
+  `test/meshtastic_bridge_test.cpp`, 51 checks. A node number is never passed
+  off as a pubkey and no hop trail is invented -- see
+  `docs/EVENT_KINDS.md` "Meshtastic bridging".
 - Reticulum bridge: **implemented against the real
   [microReticulum](https://github.com/Reticulum-Community/microReticulum)
   library** (`lib/reticulum_bridge`), not a hand-rolled packet format —
