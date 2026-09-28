@@ -132,12 +132,25 @@ void setup() {
     memset(seed, 0, sizeof(seed));
 
     signer = new omokoda::Secp256k1NostrSigner(*activeKeySource);
+    // H-12 / E-19: explicitly call begin() on the crypto engine at boot.
+    // begin() derives the x-only pubkey via libsecp256k1, verifies the
+    // private key is on the curve, and sets _ready. Everything that
+    // follows (signing, pubkey advertisements) depends on this succeeding;
+    // boot is the only safe place to surface a key-material failure.
     signerReady = signer->begin();
     if (signerReady) {
-        Serial.printf("node npub (hex): %s\n", signer->pubkeyHex().c_str());
+        Serial.printf("crypto engine ready — node npub (hex): %s\n",
+                       signer->pubkeyHex().c_str());
     } else {
-        Serial.println("signer init failed — no key material or secp256k1 init error");
+        Serial.println("FATAL: crypto engine begin() failed — "
+                        "no key material or secp256k1 init error; "
+                        "node will receive but cannot sign");
     }
+
+    Serial.printf("boot complete: radio=%s signer=%s rns=%s\n",
+                   radio ? "ok" : "fail",
+                   signerReady ? "ok" : "fail",
+                   rnsIdentityReady ? "ok" : "no-seed");
 }
 
 void loop() {
